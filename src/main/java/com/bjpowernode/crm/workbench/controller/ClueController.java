@@ -4,6 +4,7 @@ import com.bjpowernode.crm.base.bean.ResultVo;
 import com.bjpowernode.crm.base.exception.CrmException;
 import com.bjpowernode.crm.workbench.bean.Activity;
 import com.bjpowernode.crm.workbench.bean.Clue;
+import com.bjpowernode.crm.workbench.bean.Transaction;
 import com.bjpowernode.crm.workbench.service.ClueService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -43,6 +44,14 @@ public class ClueController {
         Clue clue = clueService.clueDetail(id);
         model.addAttribute("clue",clue);
         return "workbench/clue/detail";
+    }
+
+    //从线索详情页跳转到转换页面
+    @RequestMapping("/workbench/clue/queryById")
+    public String queryById(String id, Model model){
+        Clue clue = clueService.clueDetail(id);
+        model.addAttribute("clue",clue);
+        return "workbench/clue/convert";
     }
 
     //解除市场活动和线索
@@ -86,5 +95,21 @@ public class ClueController {
             e.printStackTrace();
         }
         return resultVo;
+    }
+
+    //线索转换功能
+    @RequestMapping("/workbench/clue/convert")
+    @ResponseBody
+    public ResultVo convert(String id, String isCreateTransaction, Transaction transaction){
+        ResultVo resultVo = new ResultVo();
+        try{
+            clueService.convert(id,isCreateTransaction,transaction);
+            resultVo.setOk(true);
+            resultVo.setMessage("线索转换成功");
+        }catch (CrmException e){
+            resultVo.setOk(true);
+            resultVo.setMessage("线索转换失败");
+        }
+       return resultVo;
     }
 }

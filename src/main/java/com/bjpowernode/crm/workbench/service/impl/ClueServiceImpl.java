@@ -1,15 +1,12 @@
 package com.bjpowernode.crm.workbench.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.bjpowernode.crm.base.util.DateTimeUtil;
 import com.bjpowernode.crm.base.util.UUIDUtil;
 import com.bjpowernode.crm.settings.bean.User;
 import com.bjpowernode.crm.settings.mapper.UserMapper;
-import com.bjpowernode.crm.workbench.bean.Activity;
-import com.bjpowernode.crm.workbench.bean.Clue;
-import com.bjpowernode.crm.workbench.bean.ClueActivityRelation;
-import com.bjpowernode.crm.workbench.mapper.ActivityMapper;
-import com.bjpowernode.crm.workbench.mapper.ClueActivityRelationMapper;
-import com.bjpowernode.crm.workbench.mapper.ClueMapper;
+import com.bjpowernode.crm.workbench.bean.*;
+import com.bjpowernode.crm.workbench.mapper.*;
 import com.bjpowernode.crm.workbench.service.ClueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,6 +29,34 @@ public class ClueServiceImpl implements ClueService {
 
     @Autowired
     private ActivityMapper activityMapper;
+
+    @Autowired
+    private CompanyMapper companyMapper;
+
+    @Autowired
+    private ContactsMapper contactsMapper;
+
+    @Autowired
+    private CompanyRemarkMapper companyRemarkMapper;
+
+    @Autowired
+    private ContactsRemarkMapper contactsRemarkMapper;
+
+    @Autowired
+    private ContactsActivityRelationMapper contactsActivityRelationMapper;
+
+    @Autowired
+    private TransactionMapper transactionMapper;
+
+    @Autowired
+    private TransactionRemarkMapper transactionRemarkMapper;
+
+    @Autowired
+    private TransactionHistoryMapper transactionHistoryMapper;
+
+    @Autowired
+    private ClueRemarkMapper clueRemarkMapper;
+
 
     @Override
     public List<Clue> clueList(Clue clue) {
@@ -174,5 +199,126 @@ public class ClueServiceImpl implements ClueService {
             activityList.add(activity);
         }
         return activityList;
+    }
+
+    //线索转换
+    @Override
+    public void convert(String id,String isCreateTransaction,Transaction transaction) {
+        //1、根据线索的主键查询线索的信息
+        Clue clue = clueMapper.selectByPrimaryKey(id);
+
+        //2、先将线索中的客户信息取出来保存在客户表中，当该客户不存在的时候，新建客户(按公司名称精准查询)
+        Company company = new Company();
+        company.setName(clue.getCompany());
+        List<Company> companyList = companyMapper.select(company);
+        if(companyList.size() == 0){
+            //客户不存在，保存客户信息，保存客户备注信息
+           company.setAddress(clue.getAddress());
+           company.setContactSummary(clue.getContactSummary());
+           company.setCreateBy(clue.getCreateBy());
+           company.setCreateTime(DateTimeUtil.getSysTime());
+           company.setId(UUIDUtil.getUUID());
+           company.setNextContactTime(clue.getNextContactTime());
+           company.setOwner(clue.getOwner());
+           company.setPhone(clue.getPhone());
+           company.setWebsite(clue.getWebsite());
+           companyMapper.insert(company);
+        }else{
+            company = companyList.get(0);
+        }
+        //3、将线索中联系人信息取出来保存在联系人表中
+        Contacts contacts = new Contacts();
+        contacts.setId(UUIDUtil.getUUID());
+        contacts.setAddress(clue.getAddress());
+        contacts.setAppellation(clue.getAppellation());
+        contacts.setContactSummary(clue.getContactSummary());
+        contacts.setCreateBy(clue.getCreateBy());
+        contacts.setCreateTime(DateTimeUtil.getSysTime());
+        contacts.setCustomerId(company.getId());
+        contacts.setEmail(clue.getEmail());
+        contacts.setFullname(clue.getFullname());
+        contacts.setDescription(clue.getDescription());
+        contacts.setJob(clue.getJob());
+        contacts.setMphone(clue.getMphone());
+        contacts.setNextContactTime(clue.getNextContactTime());
+        contacts.setOwner(clue.getOwner());
+        contacts.setSource(clue.getSource());
+        contactsMapper.insert(contacts);
+
+
+        //4、线索中的备注信息取出来保存在客户备注中 备注的内容修改在客户模块客户详情页进行修改
+        CompanyRemark companyRemark = new CompanyRemark();
+        companyRemark.setId(UUIDUtil.getUUID());
+        companyRemark.setCreateBy(clue.getCreateBy());
+        companyRemark.setCreateTime(DateTimeUtil.getSysTime());
+        companyRemark.setCustomerId(company.getId());
+        companyRemarkMapper.insert(companyRemark);
+
+        //5、线索中的备注信息取出来保存在联系人备注中 备注的内容修改在联系人模块客户详情页进行修改
+        ContactsRemark contactsRemark = new ContactsRemark();
+        contactsRemark.setId(UUIDUtil.getUUID());
+        contactsRemark.setContactsId(contacts.getId());
+        contactsRemark.setCreateBy(clue.getCreateBy());
+        contactsRemark.setCreateTime(DateTimeUtil.getSysTime());
+
+        contactsRemarkMapper.insert(contactsRemark);
+
+
+        //6、将"线索和市场活动的关系"转换到"联系人和市场活动的关系中"
+        //先查询当前线索关联的市场活动
+        ClueActivityRelation clueActivityRelation = new ClueActivityRelation();
+        clueActivityRelation.setClueId(id);
+        List<ClueActivityRelation> clueActivityRelations = clueActivityRelationMapper.select(clueActivityRelation);
+        for (ClueActivityRelation activityRelation : clueActivityRelations) {
+            //取出市场活动主键
+            ContactsActivityRelation contactsActivityRelation = new ContactsActivityRelation();
+            contactsActivityRelation.setId(UUIDUtil.getUUID());
+            contactsActivityRelation.setActivityId(activityRelation.getActivityId());
+            contactsActivityRelation.setContactsId(contacts.getId());
+            contactsActivityRelationMapper.insert(contactsActivityRelation);
+        }
+
+        //7、如果转换过程中发生了交易，创建一条新的交易，交易信息不全，后面可以通过修改交易来完善交易信息
+        if("1".equals(isCreateTransaction)){
+            //发生交易了
+            transaction.setId(UUIDUtil.getUUID());
+            transaction.setCreateBy(clue.getCreateBy());
+            transaction.setCreateTime(DateTimeUtil.getSysTime());
+            transactionMapper.insert(transaction);
+
+
+            //8、创建该条交易对应的交易历史以及备注
+            //保存交易历史信息
+            TransactionHistory transactionHistory = new TransactionHistory();
+            transactionHistory.setId(UUIDUtil.getUUID());
+            transactionHistory.setCreateBy(clue.getCreateBy());
+            transactionHistory.setCreateTime(DateTimeUtil.getSysTime());
+            transactionHistory.setExpectedDate(transaction.getExpectedDate());
+            transactionHistory.setMoney(transaction.getMoney());
+            transactionHistory.setStage(transaction.getStage());
+            transactionHistory.setTranId(transaction.getId());
+            transactionHistoryMapper.insert(transactionHistory);
+
+            //保存交易备注信息
+            TransactionRemark transactionRemark = new TransactionRemark();
+            transactionRemark.setId(UUIDUtil.getUUID());
+            transactionRemark.setCreateBy(clue.getCreateBy());
+            transactionRemark.setCreateTime(DateTimeUtil.getSysTime());
+            transactionRemark.setTranId(transaction.getId());
+            transactionRemarkMapper.insert(transactionRemark);
+        }
+
+        //9.删除线索的备注信息 根据线索id删除
+        ClueRemark clueRemark = new ClueRemark();
+        clueRemark.setClueId(id);
+        clueRemarkMapper.delete(clueRemark);
+
+        //10、删除线索和市场活动的关联关系 delete from 表 where clueId=..
+        ClueActivityRelation clueActivityRelation1 = new ClueActivityRelation();
+        clueActivityRelation1.setClueId(id);
+        clueActivityRelationMapper.delete(clueActivityRelation1);
+
+        //11、删除线索记录
+        clueMapper.deleteByPrimaryKey(id);
     }
 }
