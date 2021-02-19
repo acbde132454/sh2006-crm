@@ -6,6 +6,7 @@ import tk.mybatis.mapper.code.Style;
 
 import javax.persistence.Id;
 import javax.persistence.Table;
+import java.util.List;
 
 @Data
 @Table(name = "tbl_tran")
@@ -31,5 +32,8 @@ public class Transaction {
     private String description;
     private String contactSummary;
     private String nextContactTime;
+    private String possibility;
+
+    private List<TransactionHistory> transactionHistories;
 
 }

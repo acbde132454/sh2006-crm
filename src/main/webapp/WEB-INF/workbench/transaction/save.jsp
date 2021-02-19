@@ -1,15 +1,18 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 
-<link href="../../jquery/bootstrap_3.3.0/css/bootstrap.min.css" type="text/css" rel="stylesheet" />
-<link href="../../jquery/bootstrap-datetimepicker-master/css/bootstrap-datetimepicker.min.css" type="text/css" rel="stylesheet" />
+<link href="/crm/jquery/bootstrap_3.3.0/css/bootstrap.min.css" type="text/css" rel="stylesheet" />
+<link href="/crm/jquery/bootstrap-datetimepicker-master/css/bootstrap-datetimepicker.min.css" type="text/css" rel="stylesheet" />
 
-<script type="text/javascript" src="../../jquery/jquery-1.11.1-min.js"></script>
-<script type="text/javascript" src="../../jquery/bootstrap_3.3.0/js/bootstrap.min.js"></script>
-<script type="text/javascript" src="../../jquery/bootstrap-datetimepicker-master/js/bootstrap-datetimepicker.js"></script>
-<script type="text/javascript" src="../../jquery/bootstrap-datetimepicker-master/locale/bootstrap-datetimepicker.zh-CN.js"></script>
+<script type="text/javascript" src="/crm/jquery/jquery-1.11.1-min.js"></script>
+<script type="text/javascript" src="/crm/jquery/bootstrap_3.3.0/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="/crm/jquery/bootstrap-datetimepicker-master/js/bootstrap-datetimepicker.js"></script>
+<script type="text/javascript" src="/crm/jquery/bootstrap-datetimepicker-master/locale/bootstrap-datetimepicker.zh-CN.js"></script>
+    <script type="text/javascript" src="/crm/jquery/bs_typeahead/bootstrap3-typeahead.min.js"></script>
 
 </head>
 <body>
@@ -157,16 +160,16 @@
 			<label for="create-transactionStage" class="col-sm-2 control-label">阶段<span style="font-size: 15px; color: red;">*</span></label>
 			<div class="col-sm-10" style="width: 300px;">
 			  <select class="form-control" id="create-transactionStage">
-			  	<option></option>
-			  	<option>资质审查</option>
-			  	<option>需求分析</option>
-			  	<option>价值建议</option>
-			  	<option>确定决策者</option>
-			  	<option>提案/报价</option>
-			  	<option>谈判/复审</option>
-			  	<option>成交</option>
-			  	<option>丢失的线索</option>
-			  	<option>因竞争丢失关闭</option>
+                  <c:forEach items="${dictionaryTypes}" var="dictionaryType">
+                      <c:if test="${dictionaryType.code eq 'stage'}">
+                          <c:forEach items="${dictionaryType.dictionaryValues}"
+                                     var="dictionaryValue">
+                              <option value="${dictionaryValue.value}">
+                                      ${dictionaryValue.text}
+                              </option>
+                          </c:forEach>
+                      </c:if>
+                  </c:forEach>
 			  </select>
 			</div>
 		</div>
@@ -182,7 +185,7 @@
 			</div>
 			<label for="create-possibility" class="col-sm-2 control-label">可能性</label>
 			<div class="col-sm-10" style="width: 300px;">
-				<input type="text" class="form-control" id="create-possibility">
+				<input type="text" readonly class="form-control" id="create-possibility">
 			</div>
 		</div>
 		
@@ -243,4 +246,30 @@
 		
 	</form>
 </body>
+<script>
+    $("#create-accountName").typeahead({
+        source: function (customerName, process) {
+            $.post(
+                "/crm/workbench/transaction/queryCustomerName",
+                { "customerName" : customerName },
+                function (data) {
+                    //alert(data);List<String>
+                    process(data);
+                },
+                "json"
+            );
+        },
+        //输入内容后延迟多长时间弹出提示内容
+        delay: 500
+    });
+    
+    //选中阶段获取阶段对应的可能性
+    $('#create-transactionStage').change(function () {
+        $.get("/crm/workbench/transaction/queryPossibilityByStage",{
+            'stage' : $(this).val()
+        },function(data){
+            $('#create-possibility').val(data);
+        },"json");
+    });
+</script>
 </html>
