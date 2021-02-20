@@ -1,5 +1,9 @@
 package com.bjpowernode.crm.workbench.service.impl;
 
+import com.bjpowernode.crm.base.bean.EchartsResult;
+import com.bjpowernode.crm.base.bean.ResultVo;
+import com.bjpowernode.crm.base.util.DateTimeUtil;
+import com.bjpowernode.crm.base.util.UUIDUtil;
 import com.bjpowernode.crm.settings.bean.User;
 import com.bjpowernode.crm.settings.mapper.UserMapper;
 import com.bjpowernode.crm.workbench.bean.*;
@@ -85,7 +89,8 @@ public class TransactionServiceImpl implements TransactionService {
 
 
     @Override
-    public List<Map<String, String>> queryStage(Integer position,String id, Map<String, String> map) {
+    public ResultVo queryStage(Integer position,String id,
+                                                Map<String, String> map,User user) {
         //先根据主键查询当前交易所处阶段及其可能性
         Transaction transaction = transactionMapper.selectByPrimaryKey(id);
 
@@ -98,12 +103,33 @@ public class TransactionServiceImpl implements TransactionService {
         //把map转换成list集合，目的就是为了方便获取每个阶段对应的下标
         List<Map.Entry<String,String>> stageList = new ArrayList<>(map.entrySet());
 
+        ResultVo resultVo = new ResultVo();
         if(position != null){
             //根据页面点击的阶段，把点击的阶段的可能改成当前阶段
             for(int i = 0; i < stageList.size(); i++) {
                 if(i == position){
                     currentStage = stageList.get(i).getKey();
                     currentPossibility = stageList.get(i).getValue();
+                    //更新数据库阶段和可能性
+                    Transaction transaction1 = new Transaction();
+                    transaction1.setStage(currentStage);
+                    transaction1.setPossibility(currentPossibility);
+                    transaction1.setId(id);
+                    transactionMapper.updateByPrimaryKeySelective(transaction1);
+                    Example e = new Example(null);
+
+                    //添加一条新的交易历史记录
+                    TransactionHistory transactionHistory = new TransactionHistory();
+                    transactionHistory.setId(UUIDUtil.getUUID());
+                    transactionHistory.setTranId(id);
+                    transactionHistory.setStage(currentStage);
+                    transactionHistory.setMoney(transaction.getMoney());
+                    transactionHistory.setExpectedDate(transaction.getExpectedDate());
+                    transactionHistory.setCreateTime(DateTimeUtil.getSysTime());
+                    transactionHistory.setCreateBy(user.getName());
+                    transactionHistory.setPossibility(currentPossibility);
+                    transactionHistoryMapper.insert(transactionHistory);
+                    resultVo.setT(transactionHistory);
                 }
             }
         }
@@ -197,6 +223,21 @@ public class TransactionServiceImpl implements TransactionService {
                 stagesList.add(successMap);
             }
         }
-        return stagesList;
+        resultVo.setDataList(stagesList);
+        return resultVo;
+    }
+
+    @Override
+    public EchartsResult echarts() {
+        List<Map<String, String>> maps = transactionMapper.queryTransaction();
+        //图表的标题
+        List<String> titles = new ArrayList<>();
+        for (Map<String, String> map : maps) {
+            titles.add(map.get("name"));
+        }
+        EchartsResult echartsResult = new EchartsResult();
+        echartsResult.setTitles(titles);
+        echartsResult.setMaps(maps);
+        return echartsResult;
     }
 }

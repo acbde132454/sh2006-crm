@@ -278,7 +278,7 @@
 							<td>创建人</td>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody id="historyBody">
 						<%--<tr>
 							<td>资质审查</td>
 							<td>5,000</td>
@@ -291,7 +291,7 @@
                             <tr>
                                 <td>${transactionHistory.stage}</td>
                                 <td>${transactionHistory.money}</td>
-                                <td>可能性</td>
+                                <td>${transactionHistory.possibility}</td>
                                 <td>${transactionHistory.expectedDate}</td>
                                 <td>${transactionHistory.createTime}</td>
                                 <td>${transactionHistory.createBy}</td>
@@ -310,10 +310,11 @@
 
 <script>
     function refresh(data){
+        console.log(data.dataList);
         $('#stageDiv').html("");
         var content = "阶段&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-        for(var i = 0; i < data.length; i++){
-            var map = data[i];
+        for(var i = 0; i < data.dataList.length; i++){
+            var map = data.dataList[i];
             if(map.type == "绿圈"){
                 content += "<span stage="+map.text+" possibility="+map.possibility+" index="+map.index+"  class=\"glyphicon glyphicon-ok-circle mystage\" data-toggle=\"popover\" data-placement=\"bottom\" data-content="+map.text + map.possibility+" style=\"color: #90F790;\"></span>";
             }else if(map.type == "锚点"){
@@ -326,7 +327,7 @@
                 content += "<span stage="+map.text+" possibility="+map.possibility+" index="+map.index+" class=\"glyphicon glyphicon-remove mystage\" data-toggle=\"popover\" data-placement=\"bottom\" data-content="+map.text + map.possibility+" style='color:red'></span>";
             }
             content += "-----------";
-            if(i == data.length - 1){
+            if(i == data.dataList.length - 1){
                 content += "2010-10-10";
             }
         }
@@ -372,7 +373,15 @@
                     'index' : $(this).attr('index')
                 },function(data){
                     refresh(data);
-
+                    //拼接交易历史
+                    $('#historyBody').append("<tr>\n" +
+                        "\t\t\t\t\t\t\t<td>"+data.t.stage+"</td>\n" +
+                        "\t\t\t\t\t\t\t<td>"+data.t.money+"</td>\n" +
+                        "\t\t\t\t\t\t\t<td>"+data.t.possibility+"</td>\n" +
+                        "\t\t\t\t\t\t\t<td>"+data.t.expectedDate+"</td>\n" +
+                        "\t\t\t\t\t\t\t<td>"+data.t.createTime+"</td>\n" +
+                        "\t\t\t\t\t\t\t<td>"+data.t.createBy+"</td>\n" +
+                        "\t\t\t\t\t\t</tr>");
                 },"json");
 
             });

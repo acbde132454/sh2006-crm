@@ -1,6 +1,10 @@
 package com.bjpowernode.crm.workbench.controller;
 
 
+import com.bjpowernode.crm.base.bean.EchartsResult;
+import com.bjpowernode.crm.base.bean.ResultVo;
+import com.bjpowernode.crm.base.constants.CrmConstants;
+import com.bjpowernode.crm.settings.bean.User;
 import com.bjpowernode.crm.workbench.bean.Transaction;
 import com.bjpowernode.crm.workbench.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,10 +52,20 @@ public class TransactionController {
     //查询当前交易阶段对应的图标，支持点击交易阶段图片，动态更改当前交易阶段图标内容
     @RequestMapping("/workbench/transaction/queryStage")
     @ResponseBody
-    public List<Map<String, String>> queryStage(Integer index,String id,HttpSession session){
+    public ResultVo queryStage(Integer index, String id, HttpSession session){
+        User user = (User) session.getAttribute(CrmConstants.LOGIN_USER);
         Map<String,String> map =
                 (Map<String, String>) session.getServletContext().getAttribute("stage2Possibility");
-        List<Map<String, String>> stagesList = transactionService.queryStage(index,id,map);
-        return stagesList;
+       ResultVo resultVo = transactionService.queryStage(index,id,map,user);
+
+        return resultVo;
+    }
+
+    //制作交易图表
+    @RequestMapping("/workbench/transaction/echarts")
+    @ResponseBody
+    public EchartsResult echarts(){
+        EchartsResult echartsResult = transactionService.echarts();
+        return echartsResult;
     }
 }

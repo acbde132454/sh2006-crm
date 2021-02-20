@@ -21,4 +21,6 @@ public class TransactionHistory {
     private String createTime;
     private String createBy;
     private String tranId;
+    private String possibility;
+
 }
